@@ -1,7 +1,7 @@
 FROM postgres:17-bookworm
 
 RUN set -ex; \
-    # 安装依赖
+    # 安装必需依赖
     apt-get update && \
     apt-get install -y --no-install-recommends \
         curl gnupg ca-certificates \
