@@ -1,7 +1,7 @@
 FROM postgres:17-bookworm
 
 RUN set -ex; \
-    # 安装基础依赖和构建依赖
+    # 安装依赖
     apt-get update && \
     apt-get install -y --no-install-recommends \
         curl gnupg ca-certificates \
@@ -22,20 +22,22 @@ RUN set -ex; \
     # 拉取并编译 postgresbson
     git clone https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
     sed -i 's|-I/root/projects/bson/include||g' /tmp/postgresbson/Makefile && \
+    # 修复找不到libbson.1.so的问题
+    ln -sf /usr/lib/x86_64-linux-gnu/libbson-1.0.so /usr/lib/x86_64-linux-gnu/libbson.1.so && \
     cd /tmp/postgresbson && \
     make PG_CONFIG=$(which pg_config) CFLAGS="-I/usr/include/libbson-1.0" CPPFLAGS="-I/usr/include/libbson-1.0" && \
     make install && \
     # 注册动态库目录，防止找不到libbson
     echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/x86_64-linux-gnu.conf && \
     ldconfig && \
-    # 清理构建依赖和临时文件，仅保留运行时依赖
+    # 清理开发依赖和临时文件，仅保留运行时依赖
     apt-get purge -y --auto-remove git gcc make libbson-dev postgresql-server-dev-17 curl gnupg && \
     apt-get clean && \
     rm -rf /tmp/pigsty-key \
-           /etc/apt/keyrings/pigsty.gpg \
-           /etc/apt/sources.list.d/pigsty-io.list \
-           /var/lib/apt/lists/* \
-           /tmp/postgresbson
+        /etc/apt/keyrings/pigsty.gpg \
+        /etc/apt/sources.list.d/pigsty-io.list \
+        /var/lib/apt/lists/* \
+        /tmp/postgresbson
 
 VOLUME ["/var/lib/postgresql/data"]
 CMD ["postgres"]
