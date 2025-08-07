@@ -37,7 +37,9 @@ RUN set -ex; \
         /etc/apt/keyrings/pigsty.gpg \
         /etc/apt/sources.list.d/pigsty-io.list \
         /var/lib/apt/lists/* \
-        /tmp/postgresbson && \
+        /tmp/postgresbson 
+
+RUN apt-get update && \
     # 安装 prod 依赖
     apt-get install -y libbson-1.0-0
 
