@@ -2,8 +2,11 @@ FROM postgres:17-bookworm
 
 RUN set -ex; \
     apt-get update && \
+    # 安装构建依赖和运行时依赖
     apt-get install -y --no-install-recommends \
-        curl gnupg ca-certificates git gcc make libbson-dev postgresql-server-dev-17 && \
+        curl gnupg ca-certificates git gcc make \
+        libbson-dev libbson-1.0-0 postgresql-server-dev-17 && \
+    # 添加Pigsty仓库
     curl -fsSL https://repo.pigsty.cc/key -o /tmp/pigsty-key && \
     gpg --dearmor -o /etc/apt/keyrings/pigsty.gpg /tmp/pigsty-key && \
     echo "deb [signed-by=/etc/apt/keyrings/pigsty.gpg] https://repo.pigsty.cc/apt/infra generic main" > /etc/apt/sources.list.d/pigsty-io.list && \
@@ -14,12 +17,14 @@ RUN set -ex; \
         postgresql-17-cron \
         postgresql-17-pg-uint128 \
         postgresql-17-pg-mooncake && \
+    # 拉取并编译 postgresbson
     git clone https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
     sed -i 's|-I/root/projects/bson/include||g' /tmp/postgresbson/Makefile && \
-    ln -sf /usr/lib/x86_64-linux-gnu/libbson-1.0.so /usr/lib/x86_64-linux-gnu/libbson.1.so && \
+    ln -sf /usr/lib/x86_64-linux-gnu/libbson-1.0.so /usr/lib/x86_64-linux-gnu/libbson.1.so || true && \
     cd /tmp/postgresbson && \
     make PG_CONFIG=$(which pg_config) CFLAGS="-I/usr/include/libbson-1.0" CPPFLAGS="-I/usr/include/libbson-1.0" && \
     make install && \
+    # 清理开发依赖，仅保留运行时依赖
     apt-get purge -y --auto-remove git gcc make libbson-dev postgresql-server-dev-17 curl gnupg && \
     apt-get clean && \
     rm -rf /tmp/pigsty-key \
