@@ -1,6 +1,10 @@
 FROM postgres:16
 
-LABEL maintainer="yourname <youremail@example.com>"
+# 安装构建依赖+CA证书
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates git gcc make libbson-dev postgresql-server-dev-16 && \
+    rm -rf /var/lib/apt/lists/*
 
 # 安装构建依赖
 RUN apt-get update && \
