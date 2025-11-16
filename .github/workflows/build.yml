@@ -34,7 +34,10 @@ jobs:
       with:
         context: .
         push: true
-        tags: ghcr.io/${{ github.repository_owner }}/postgresbson:latest
+        tags: -|
+          - ghcr.io/${{ github.repository_owner }}/postgres-mixed:latest
+          - ghcr.io/${{ github.repository_owner }}/postgres-mixed:18
+        
 
     # 可选：推送到 Docker Hub
     # - name: Log in to Docker Hub
