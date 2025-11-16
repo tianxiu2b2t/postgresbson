@@ -1,10 +1,11 @@
+# 基础镜像：Postgres 18 (bookworm)
 FROM postgres:18-bookworm
 
 RUN set -ex; \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         curl gnupg ca-certificates \
-        git gcc make \
+        git gcc make patch \
         libbson-dev libbson-1.0-0 \
         postgresql-server-dev-18 && \
     \
@@ -38,10 +39,13 @@ RUN set -ex; \
     make install && \
     rm -rf /tmp/postgresbson && \
     \
-    # 清理
-    apt-get purge -y --auto-remove git gcc make libbson-dev postgresql-server-dev-18 curl gnupg && \
+    # 清理开发依赖和临时文件
+    apt-get purge -y --auto-remove git gcc make patch libbson-dev postgresql-server-dev-18 curl gnupg && \
     apt-get clean && \
     rm -rf /tmp/pigsty-key /etc/apt/keyrings/pigsty.gpg /etc/apt/sources.list.d/pigsty-io.list /var/lib/apt/lists/*
 
+# 数据目录
 VOLUME ["/var/lib/postgresql/data"]
+
+# 默认启动命令
 CMD ["postgres"]
