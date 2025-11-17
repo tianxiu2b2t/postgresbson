@@ -1,25 +1,19 @@
 FROM postgres:18-bookworm
 
-# 第一步：安装构建依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl gnupg ca-certificates \
-    git gcc g++ make patch \
-    cmake ninja-build \
-    flex bison perl libtool \
-    zip unzip tar pkg-config autoconf automake \
-    libreadline-dev zlib1g-dev libxml2-dev libxslt1-dev libicu-dev \
-    libssl-dev libcurl4-openssl-dev \
-    libgeos-dev libproj-dev libgdal-dev \
-    libjson-c-dev libprotobuf-c-dev protobuf-c-compiler \
-    uuid-dev libossp-uuid-dev \
-    liblz4-dev liblzma-dev libsnappy-dev \
-    libjansson-dev jq \
-    libipc-run-perl \
-    libbson-dev libbson-1.0-0 \
-    postgresql-server-dev-18
+# ========== 步骤 1: 安装基础构建依赖 ==========
+RUN set -ex; \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl gnupg ca-certificates \
+        git gcc g++ make cmake ninja-build \
+        libbson-dev libbson-1.0-0 \
+        postgresql-server-dev-18 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# 第二步：安装 Pigsty 扩展
-RUN curl -fsSL https://repo.pigsty.cc/key -o /tmp/pigsty-key && \
+# ========== 步骤 2: 安装 Pigsty 扩展 ==========
+RUN set -ex; \
+    curl -fsSL https://repo.pigsty.cc/key -o /tmp/pigsty-key && \
     gpg --dearmor -o /etc/apt/keyrings/pigsty.gpg /tmp/pigsty-key && \
     echo "deb [signed-by=/etc/apt/keyrings/pigsty.gpg] https://repo.pigsty.cc/apt/infra generic main" > /etc/apt/sources.list.d/pigsty-io.list && \
     echo "deb [signed-by=/etc/apt/keyrings/pigsty.gpg] https://repo.pigsty.cc/apt/pgsql/bookworm bookworm main" >> /etc/apt/sources.list.d/pigsty-io.list && \
@@ -28,20 +22,20 @@ RUN curl -fsSL https://repo.pigsty.cc/key -o /tmp/pigsty-key && \
         postgresql-18-vchord \
         postgresql-18-cron \
         postgresql-18-pg-uint128 \
-        postgresql-18-pg-mooncake
+        postgresql-18-pg-mooncake && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/pigsty-key
 
-# 第三步：安装 vcpkg
-RUN git clone https://github.com/microsoft/vcpkg.git /tmp/vcpkg && \
-    /tmp/vcpkg/bootstrap-vcpkg.sh
+# ========== 步骤 3: 安装 vcpkg 和 Azure 依赖 ==========
+RUN set -ex; \
+    git clone https://github.com/microsoft/vcpkg.git /opt/vcpkg && \
+    /opt/vcpkg/bootstrap-vcpkg.sh && \
+    cd /opt/vcpkg && git pull && ./vcpkg update && \
+    /opt/vcpkg/vcpkg install azure-identity-cpp azure-storage-blobs-cpp azure-storage-files-datalake-cpp openssl
 
-# 第四步：更新 vcpkg 并安装依赖
-RUN cd /tmp/vcpkg && git pull && ./vcpkg update && \
-    /tmp/vcpkg/vcpkg install azure-identity-cpp azure-storage-blobs-cpp azure-storage-files-datalake-cpp openssl
-
-ENV VCPKG_TOOLCHAIN_PATH=/tmp/vcpkg/scripts/buildsystems/vcpkg.cmake
-
-# 第五步：编译安装 pg_lake (包含子模块)
-RUN git clone --recurse-submodules https://github.com/Snowflake-Labs/pg_lake.git /tmp/pg_lake && \
+# ========== 步骤 4: 编译安装 pg_lake ==========
+RUN set -ex; \
+    git clone --recurse-submodules --depth 1 https://github.com/Snowflake-Labs/pg_lake.git /tmp/pg_lake && \
     cd /tmp/pg_lake/duckdb_pglake && \
     make && make install && \
     cd /tmp/pg_lake && \
@@ -50,24 +44,40 @@ RUN git clone --recurse-submodules https://github.com/Snowflake-Labs/pg_lake.git
     make install-fast && \
     rm -rf /tmp/pg_lake
 
-# 第六步：编译安装 postgresbson
-RUN git clone https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
+# ========== 步骤 5: 编译安装 postgresbson ==========
+RUN set -ex; \
+    git clone https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
     sed -i 's|-I/root/projects/bson/include||g' /tmp/postgresbson/Makefile && \
     ln -sf /usr/lib/x86_64-linux-gnu/libbson-1.0.so /usr/lib/x86_64-linux-gnu/libbson.1.so && \
     cd /tmp/postgresbson && \
     make PG_CONFIG=$(which pg_config) CFLAGS="-I/usr/include/libbson-1.0" CPPFLAGS="-I/usr/include/libbson-1.0" && \
     make install && \
+    echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/x86_64-linux-gnu.conf && \
+    ldconfig && \
     rm -rf /tmp/postgresbson
 
-# 第七步：清理
-RUN apt-get purge -y --auto-remove git gcc g++ make patch cmake ninja-build \
-    flex bison perl libtool autoconf automake pkg-config \
-    libbson-dev postgresql-server-dev-18 curl gnupg && \
+# ========== 步骤 6: 清理构建依赖 ==========
+RUN set -ex; \
+    apt-get purge -y --auto-remove git gcc g++ make cmake ninja-build postgresql-server-dev-18 curl gnupg && \
     apt-get clean && \
-    rm -rf /tmp/* /var/lib/apt/lists/* /etc/apt/sources.list.d/pigsty-io.list
+    rm -rf /etc/apt/keyrings/pigsty.gpg \
+        /etc/apt/sources.list.d/pigsty-io.list \
+        /var/lib/apt/lists/*
 
-# 数据目录
+# ========== 步骤 7: 配置扩展自动安装 ==========
+RUN echo "#!/bin/bash\n\
+set -e\n\
+for db in template1 postgres; do\n\
+  psql -v ON_ERROR_STOP=1 --username \"\$POSTGRES_USER\" --dbname \"\$db\" <<-EOSQL\n\
+    CREATE EXTENSION IF NOT EXISTS bson;\n\
+    CREATE EXTENSION IF NOT EXISTS pg_lakehouse;\n\
+    CREATE EXTENSION IF NOT EXISTS vchord;\n\
+    CREATE EXTENSION IF NOT EXISTS cron;\n\
+    CREATE EXTENSION IF NOT EXISTS uint128;\n\
+    CREATE EXTENSION IF NOT EXISTS mooncake;\n\
+EOSQL\n\
+done" > /docker-entrypoint-initdb.d/01-extensions.sh && \
+    chmod +x /docker-entrypoint-initdb.d/01-extensions.sh
+
 VOLUME ["/var/lib/postgresql/data"]
-
-# 默认启动命令
 CMD ["postgres"]
