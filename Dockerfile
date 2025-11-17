@@ -1,11 +1,12 @@
 FROM postgres:18-bookworm
 
-# 第一步：安装依赖
+# 第一步：安装构建依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl gnupg ca-certificates \
     git gcc g++ make patch \
     cmake ninja-build \
     flex bison perl libtool \
+    zip unzip tar \
     libreadline-dev zlib1g-dev libxml2-dev libxslt1-dev libicu-dev \
     libssl-dev libcurl4-openssl-dev \
     libgeos-dev libproj-dev libgdal-dev \
@@ -31,12 +32,13 @@ RUN curl -fsSL https://repo.pigsty.cc/key -o /tmp/pigsty-key && \
 
 # 第三步：安装 vcpkg
 RUN git clone https://github.com/microsoft/vcpkg.git /tmp/vcpkg && \
-    /tmp/vcpkg/bootstrap-vcpkg.sh && \
-    /tmp/vcpkg/vcpkg install azure-identity-cpp azure-storage-blobs-cpp azure-storage-files-datalake-cpp openssl
+    /tmp/vcpkg/bootstrap-vcpkg.sh
 
+# 第四步：安装 vcpkg 依赖
+RUN /tmp/vcpkg/vcpkg install azure-identity-cpp azure-storage-blobs-cpp azure-storage-files-datalake-cpp openssl
 ENV VCPKG_TOOLCHAIN_PATH=/tmp/vcpkg/scripts/buildsystems/vcpkg.cmake
 
-# 第四步：编译 pg_lake
+# 第五步：编译安装 pg_lake
 RUN git clone https://github.com/Snowflake-Labs/pg_lake.git /tmp/pg_lake && \
     cd /tmp/pg_lake/duckdb_pglake && \
     make && make install && \
@@ -46,7 +48,7 @@ RUN git clone https://github.com/Snowflake-Labs/pg_lake.git /tmp/pg_lake && \
     make install-fast && \
     rm -rf /tmp/pg_lake
 
-# 第五步：编译 postgresbson
+# 第六步：编译安装 postgresbson
 RUN git clone https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
     sed -i 's|-I/root/projects/bson/include||g' /tmp/postgresbson/Makefile && \
     ln -sf /usr/lib/x86_64-linux-gnu/libbson-1.0.so /usr/lib/x86_64-linux-gnu/libbson.1.so && \
@@ -55,12 +57,15 @@ RUN git clone https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
     make install && \
     rm -rf /tmp/postgresbson
 
-# 第六步：清理
+# 第七步：清理
 RUN apt-get purge -y --auto-remove git gcc g++ make patch cmake ninja-build \
     flex bison perl libtool \
     libbson-dev postgresql-server-dev-18 curl gnupg && \
     apt-get clean && \
     rm -rf /tmp/* /var/lib/apt/lists/* /etc/apt/sources.list.d/pigsty-io.list
 
+# 数据目录
 VOLUME ["/var/lib/postgresql/data"]
+
+# 默认启动命令
 CMD ["postgres"]
