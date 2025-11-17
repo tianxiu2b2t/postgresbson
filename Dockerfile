@@ -5,8 +5,8 @@ RUN set -ex; \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         curl gnupg ca-certificates \
-        git gcc g++ make cmake ninja-build \
-        zip unzip tar pkg-config patch \
+        git gcc g++ make \
+        patch \
         libbson-dev libbson-1.0-0 \
         postgresql-server-dev-18 && \
     apt-get clean && \
@@ -27,25 +27,14 @@ RUN set -ex; \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/pigsty-key
 
-# ========== 步骤 3: 安装 vcpkg 和 Azure 依赖 ==========
-RUN set -ex; \
-    git clone https://github.com/microsoft/vcpkg.git /opt/vcpkg && \
-    /opt/vcpkg/bootstrap-vcpkg.sh && \
-    cd /opt/vcpkg && \
-    ./vcpkg install azure-identity-cpp azure-storage-blobs-cpp azure-storage-files-datalake-cpp openssl
-
-# ========== 步骤 4: 编译安装 pg_lake ==========
+# ========== 步骤 3: 编译安装 pg_lake (简化版，不使用 Azure 功能) ==========
 RUN set -ex; \
     git clone --recurse-submodules --depth 1 https://github.com/Snowflake-Labs/pg_lake.git /tmp/pg_lake && \
-    cd /tmp/pg_lake/duckdb_pglake && \
-    make && make install && \
     cd /tmp/pg_lake && \
-    make install-avro-local && \
-    make fast && \
-    make install-fast && \
+    make && make install && \
     rm -rf /tmp/pg_lake
 
-# ========== 步骤 5: 编译安装 postgresbson ==========
+# ========== 步骤 4: 编译安装 postgresbson ==========
 RUN set -ex; \
     git clone https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
     sed -i 's|-I/root/projects/bson/include||g' /tmp/postgresbson/Makefile && \
@@ -57,16 +46,15 @@ RUN set -ex; \
     ldconfig && \
     rm -rf /tmp/postgresbson
 
-# ========== 步骤 6: 清理构建依赖 ==========
+# ========== 步骤 5: 清理构建依赖 ==========
 RUN set -ex; \
-    apt-get purge -y --auto-remove git gcc g++ make cmake ninja-build postgresql-server-dev-18 curl gnupg zip unzip tar pkg-config patch && \
+    apt-get purge -y --auto-remove git gcc g++ make postgresql-server-dev-18 curl gnupg patch && \
     apt-get clean && \
     rm -rf /etc/apt/keyrings/pigsty.gpg \
         /etc/apt/sources.list.d/pigsty-io.list \
-        /var/lib/apt/lists/* \
-        /opt/vcpkg
+        /var/lib/apt/lists/*
 
-# ========== 步骤 7: 配置扩展自动安装 ==========
+# ========== 步骤 6: 配置扩展自动安装 ==========
 RUN echo "#!/bin/bash\n\
 set -e\n\
 for db in template1 postgres; do\n\
