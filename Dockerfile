@@ -6,7 +6,7 @@ RUN set -ex; \
     apt-get install -y --no-install-recommends \
         curl gnupg ca-certificates \
         git gcc g++ make cmake ninja-build \
-        zip unzip tar pkg-config patch \  # 添加 patch 工具
+        zip unzip tar pkg-config patch \
         libbson-dev libbson-1.0-0 \
         postgresql-server-dev-18 && \
     apt-get clean && \
@@ -70,7 +70,7 @@ RUN set -ex; \
 RUN echo "#!/bin/bash\n\
 set -e\n\
 for db in template1 postgres; do\n\
-  psql -v ON_ERROR_STOP=1 --username \"\$POSTGRES_USER\" --dbname \"\$db\" <<-EOSQL\n\
+  psql -v ON_ERROR_STOP=1 --username \"\$POSTGRES_USER\" \"\$db\" <<-EOSQL\n\
     CREATE EXTENSION IF NOT EXISTS bson;\n\
     CREATE EXTENSION IF NOT EXISTS pg_lakehouse;\n\
     CREATE EXTENSION IF NOT EXISTS vchord;\n\
