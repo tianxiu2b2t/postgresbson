@@ -40,8 +40,8 @@ RUN cd /tmp/vcpkg && git pull && ./vcpkg update && \
 
 ENV VCPKG_TOOLCHAIN_PATH=/tmp/vcpkg/scripts/buildsystems/vcpkg.cmake
 
-# 第五步：编译安装 pg_lake
-RUN git clone https://github.com/Snowflake-Labs/pg_lake.git /tmp/pg_lake && \
+# 第五步：编译安装 pg_lake (包含子模块)
+RUN git clone --recurse-submodules https://github.com/Snowflake-Labs/pg_lake.git /tmp/pg_lake && \
     cd /tmp/pg_lake/duckdb_pglake && \
     make && make install && \
     cd /tmp/pg_lake && \
