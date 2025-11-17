@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git gcc g++ make patch \
     cmake ninja-build \
     flex bison perl libtool \
-    zip unzip tar \
+    zip unzip tar pkg-config autoconf automake \
     libreadline-dev zlib1g-dev libxml2-dev libxslt1-dev libicu-dev \
     libssl-dev libcurl4-openssl-dev \
     libgeos-dev libproj-dev libgdal-dev \
@@ -34,8 +34,10 @@ RUN curl -fsSL https://repo.pigsty.cc/key -o /tmp/pigsty-key && \
 RUN git clone https://github.com/microsoft/vcpkg.git /tmp/vcpkg && \
     /tmp/vcpkg/bootstrap-vcpkg.sh
 
-# 第四步：安装 vcpkg 依赖
-RUN /tmp/vcpkg/vcpkg install azure-identity-cpp azure-storage-blobs-cpp azure-storage-files-datalake-cpp openssl
+# 第四步：更新 vcpkg 并安装依赖
+RUN cd /tmp/vcpkg && git pull && ./vcpkg update && \
+    /tmp/vcpkg/vcpkg install azure-identity-cpp azure-storage-blobs-cpp azure-storage-files-datalake-cpp openssl
+
 ENV VCPKG_TOOLCHAIN_PATH=/tmp/vcpkg/scripts/buildsystems/vcpkg.cmake
 
 # 第五步：编译安装 pg_lake
@@ -59,7 +61,7 @@ RUN git clone https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
 
 # 第七步：清理
 RUN apt-get purge -y --auto-remove git gcc g++ make patch cmake ninja-build \
-    flex bison perl libtool \
+    flex bison perl libtool autoconf automake pkg-config \
     libbson-dev postgresql-server-dev-18 curl gnupg && \
     apt-get clean && \
     rm -rf /tmp/* /var/lib/apt/lists/* /etc/apt/sources.list.d/pigsty-io.list
