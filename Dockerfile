@@ -6,6 +6,7 @@ RUN set -ex; \
     apt-get install -y --no-install-recommends \
         curl gnupg ca-certificates \
         git gcc g++ make cmake ninja-build \
+        zip unzip tar pkg-config \  # 添加了 zip, unzip, tar, pkg-config
         libbson-dev libbson-1.0-0 \
         postgresql-server-dev-18 && \
     apt-get clean && \
@@ -30,8 +31,8 @@ RUN set -ex; \
 RUN set -ex; \
     git clone https://github.com/microsoft/vcpkg.git /opt/vcpkg && \
     /opt/vcpkg/bootstrap-vcpkg.sh && \
-    cd /opt/vcpkg && git pull && ./vcpkg update && \
-    /opt/vcpkg/vcpkg install azure-identity-cpp azure-storage-blobs-cpp azure-storage-files-datalake-cpp openssl
+    cd /opt/vcpkg && \
+    ./vcpkg install azure-identity-cpp azure-storage-blobs-cpp azure-storage-files-datalake-cpp openssl
 
 # ========== 步骤 4: 编译安装 pg_lake ==========
 RUN set -ex; \
@@ -58,11 +59,12 @@ RUN set -ex; \
 
 # ========== 步骤 6: 清理构建依赖 ==========
 RUN set -ex; \
-    apt-get purge -y --auto-remove git gcc g++ make cmake ninja-build postgresql-server-dev-18 curl gnupg && \
+    apt-get purge -y --auto-remove git gcc g++ make cmake ninja-build postgresql-server-dev-18 curl gnupg zip unzip tar pkg-config && \
     apt-get clean && \
     rm -rf /etc/apt/keyrings/pigsty.gpg \
         /etc/apt/sources.list.d/pigsty-io.list \
-        /var/lib/apt/lists/*
+        /var/lib/apt/lists/* \
+        /opt/vcpkg  # 清理 vcpkg，如果不需要在运行时使用
 
 # ========== 步骤 7: 配置扩展自动安装 ==========
 RUN echo "#!/bin/bash\n\
