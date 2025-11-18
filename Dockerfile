@@ -62,27 +62,34 @@ RUN set -ex; \
 # ========== 步骤 3: 安装 vcpkg 和 Azure 依赖 ==========
 RUN set -ex; \
     export VCPKG_VERSION=2025.01.13 && \
-    git clone --recurse-submodules https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
+    git clone --recurse-submodules --depth 1 https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
     cd /opt/vcpkg && \
     ./bootstrap-vcpkg.sh && \
     ./vcpkg install azure-identity-cpp azure-storage-blobs-cpp azure-storage-files-datalake-cpp openssl
 
 ENV VCPKG_TOOLCHAIN_PATH=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake
 
-# ========== 步骤 4: 编译安装 pg_lake ==========
+# ========== 步骤 4: 编译安装 pg_lake (高度优化版本) ==========
 RUN set -ex; \
-    git clone --recurse-submodules https://github.com/snowflake-labs/pg_lake.git /tmp/pg_lake && \
+    # 设置编译环境变量以减少磁盘使用
+    export CMAKE_BUILD_TYPE=MinSizeRel && \
+    export CFLAGS="-Os" && \
+    export CXXFLAGS="-Os" && \
+    git clone --recurse-submodules --depth 1 https://github.com/snowflake-labs/pg_lake.git /tmp/pg_lake && \
     cd /tmp/pg_lake/duckdb_pglake && \
-    make && make install && \
+    # 只编译必要的扩展，禁用调试信息
+    CMAKE_ARGS="-DCMAKE_BUILD_TYPE=MinSizeRel -DDUCKDB_EXTENSIONS='duckdb_pglake;httpfs;parquet' -DCMAKE_CXX_FLAGS='-Os' -DCMAKE_C_FLAGS='-Os'" make -j2 && \
+    make install && \
     cd /tmp/pg_lake && \
     make install-avro-local && \
     make fast && \
     make install-fast && \
-    rm -rf /tmp/pg_lake
+    # 立即清理以释放空间
+    rm -rf /tmp/pg_lake /opt/vcpkg
 
 # ========== 步骤 5: 编译安装 postgresbson ==========
 RUN set -ex; \
-    git clone https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
+    git clone --depth 1 https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
     sed -i 's|-I/root/projects/bson/include||g' /tmp/postgresbson/Makefile && \
     ln -sf /usr/lib/x86_64-linux-gnu/libbson-1.0.so /usr/lib/x86_64-linux-gnu/libbson.1.so && \
     cd /tmp/postgresbson && \
@@ -137,8 +144,7 @@ RUN set -ex; \
     apt-get clean && \
     rm -rf /etc/apt/keyrings/pigsty.gpg \
         /etc/apt/sources.list.d/pigsty-io.list \
-        /var/lib/apt/lists/* \
-        /opt/vcpkg
+        /var/lib/apt/lists/*
 
 # ========== 步骤 8: 安装运行时依赖 ==========
 RUN set -ex; \
