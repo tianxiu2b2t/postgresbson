@@ -32,6 +32,9 @@ RUN set -ex; \
         libjansson-dev \
         libcurl4-openssl-dev \
         curl \
+        zip \
+        unzip \
+        tar \
         patch \
         g++ \
         libipc-run-perl \
@@ -122,6 +125,9 @@ RUN set -ex; \
         libjansson-dev \
         libcurl4-openssl-dev \
         curl \
+        zip \
+        unzip \
+        tar \
         patch \
         g++ \
         libipc-run-perl \
@@ -174,16 +180,5 @@ EOSQL\n\
 done" > /docker-entrypoint-initdb.d/01-extensions.sh && \
     chmod +x /docker-entrypoint-initdb.d/01-extensions.sh
 
-# ========== 步骤 10: 创建启动脚本 ==========
-RUN echo "#!/bin/bash\n\
-set -e\n\
-\n\
-# 启动 pgduck_server 后台进程\n\
-pgduck_server &\n\
-\n\
-# 启动 PostgreSQL\n\
-exec docker-entrypoint.sh postgres \"\$@\"" > /usr/local/bin/start-postgres.sh && \
-    chmod +x /usr/local/bin/start-postgres.sh
-
 VOLUME ["/var/lib/postgresql/data"]
-CMD ["/usr/local/bin/start-postgres.sh"]
+CMD ["postgres"]
