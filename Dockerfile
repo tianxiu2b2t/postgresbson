@@ -6,6 +6,7 @@ RUN set -ex; \
         git gcc make patch \
         libbson-dev libbson-1.0-0 \
         postgresql-server-dev-18 && \
+    git config --global http.sslVerify false && \
     git clone --depth 1 https://github.com/buzzm/postgresbson.git /tmp/postgresbson && \
     cd /tmp/postgresbson && \
     sed -i 's|-I/root/projects/bson/include||g' Makefile && \
