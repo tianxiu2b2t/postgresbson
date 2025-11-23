@@ -1,7 +1,6 @@
 FROM postgres:18-bookworm
 
 RUN set -ex; \
-    # 安装依赖并编译 postgresbson
     apt-get update && \
     apt-get install -y --no-install-recommends \
         curl gnupg ca-certificates \
@@ -17,10 +16,8 @@ RUN set -ex; \
     echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/x86_64-linux-gnu.conf && \
     ldconfig && \
     rm -rf /tmp/postgresbson && \
-    # 清理构建依赖
     apt-get purge -y --auto-remove git gcc make postgresql-server-dev-18 curl gnupg patch && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    # 初始化全局函数
     echo "#!/bin/bash
 set -e
 psql -v ON_ERROR_STOP=1 --username \"\$POSTGRES_USER\" template1 <<-EOSQL
