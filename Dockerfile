@@ -19,7 +19,6 @@ RUN set -ex; \
     make install && \
     echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/x86_64-linux-gnu.conf && \
     ldconfig && \
-    rm -rf /tmp/postgresbson && \
     apt-get purge -y --auto-remove git gcc make postgresql-server-dev-18 curl gnupg patch && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
