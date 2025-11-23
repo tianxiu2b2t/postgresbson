@@ -19,14 +19,18 @@ RUN set -ex; \
     make install && \
     echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/x86_64-linux-gnu.conf && \
     ldconfig && \
-    apt-get purge -y --auto-remove git gcc make postgresql-server-dev-18 curl gnupg patch && \
+    # 将 postgresbson 移动到 /opt 目录保留，而不是删除
+    mv /tmp/postgresbson /opt/postgresbson && \
+    apt-get purge -y --auto-remove curl gnupg patch && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    echo "#!/bin/bash\n\
+    rm -rf /var/lib/apt/lists/*
+
+# ========== 步骤 2: 创建初始化脚本 ==========
+RUN echo '#!/bin/bash\n\
 set -e\n\
 \n\
 # 在 template1 中创建扩展和函数，这样所有新数据库都会继承\n\
-psql -v ON_ERROR_STOP=1 --username \"\\$POSTGRES_USER\" \"template1\" <<-EOSQL\n\
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" "template1" <<-EOSQL\n\
     -- 安装 bson 扩展\n\
     CREATE EXTENSION IF NOT EXISTS bson;\n\
     \n\
@@ -108,12 +112,12 @@ psql -v ON_ERROR_STOP=1 --username \"\\$POSTGRES_USER\" \"template1\" <<-EOSQL\n
 EOSQL\n\
 \n\
 # 为已存在的 postgres 数据库也安装扩展\n\
-psql -v ON_ERROR_STOP=1 --username \"\\$POSTGRES_USER\" \"postgres\" <<-EOSQL\n\
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" "postgres" <<-EOSQL\n\
     CREATE EXTENSION IF NOT EXISTS bson;\n\
-EOSQL" > /docker-entrypoint-initdb.d/01-global-functions.sh && \
+EOSQL' > /docker-entrypoint-initdb.d/01-global-functions.sh && \
     chmod +x /docker-entrypoint-initdb.d/01-global-functions.sh
 
-# ========== 步骤 5: 设置健康检查 ==========
+# ========== 步骤 3: 设置健康检查 ==========
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD pg_isready -U $POSTGRES_USER || exit 1
 
