@@ -23,10 +23,8 @@ RUN set -ex; \
     mv /tmp/postgresbson /opt/postgresbson && \
     apt-get purge -y --auto-remove curl gnupg patch && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# ========== 步骤 2: 创建初始化脚本 ==========
-RUN echo '#!/bin/bash\n\
+    rm -rf /var/lib/apt/lists/* && \
+    echo '#!/bin/bash\n\
 set -e\n\
 \n\
 # 在 template1 中创建扩展和函数，这样所有新数据库都会继承\n\
